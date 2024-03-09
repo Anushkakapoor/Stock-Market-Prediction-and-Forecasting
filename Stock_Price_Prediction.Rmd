@@ -1,0 +1,157 @@
+---
+title: "Stock_price_prediction"
+author: "Anushka Kapoor"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r cars}
+#REQUIRED LIBRARIES
+library(rvest)
+library(dplyr)
+library(readr)
+library(tidyr)
+library(ggplot2)
+#install.packages(c("zoo", "ggplot2"))
+library(zoo)
+```
+
+
+Reading the data from the URL and creating a data frame out of it named as sp500.
+Columns-
+Ticker: Symbol of the stock
+Name: Name of the stock
+Sector: Sector to which the stock belongs
+Industry: Industry to which the stock belongs
+HQ_Location: Headquarter location of the company of the stock
+
+returns Data frame:
+Open: Opening price of stock
+Low: Lowest price of stock
+Close: Closing price of stock
+High: Highest price of stock
+Movement: Net movement of the stock for a day
+
+Loading the Data frames created.
+```{r}
+load("~/Desktop/MSBA Class'24/Machinelearning/MachineLearning/sp500.RData")
+load("~/Desktop/MSBA Class'24/Machinelearning/MachineLearning/returns.RData")
+load("~/Desktop/MSBA Class'24/Machinelearning/MachineLearning/returns_long.RData")
+load("~/Desktop/MSBA Class'24/Machinelearning/MachineLearning/returns_sp500.RData")
+```
+
+```{r}
+#choosing "Microsoft" as the stock for which we want to see the plot.We can try other ticker values to see plots for other stocks (AAPL, GOOGL, AMZN, BLK etc)
+ticker <- "MSFT"
+
+charting_data <- returns_sp500 %>% filter(Ticker == ticker, Date >= "2023-06-24")
+plotting_data <- returns_long %>% filter(Ticker == ticker, Date >= "2023-09-02")
+```
+
+Stock Price trend for Microsoft.
+```{r}
+candlestick <- ggplot(plotting_data) +
+  geom_boxplot(aes(x = as.character(Date), y = Value, color = Movement), width = 0.2) +
+  scale_color_manual(values = c(Up = "green", Down = "red")) +
+  xlab("Date") + 
+  ylab("Stock Price") +
+  labs(
+    title = paste0(plotting_data$Name[1], " (", ticker, ")"),
+    subtitle = plotting_data$Sector[1],
+    caption = "Source: Yahoo! Finance"
+    )+
+  scale_y_continuous(labels = scales::dollar)+
+  theme(
+   plot.background = element_rect(fill = "#17202A"),
+    panel.background = element_rect(fill = "#17202A"),
+    axis.text.x = element_text(color = "#ffffff", angle = 45, hjust = 1, vjust = 1),
+    axis.text.y = element_text(color = "#ffffff"),
+    axis.title.y = element_text(color = "#ffffff"),
+    axis.title.x = element_text(color = "#ffffff"),
+    plot.title = element_text(color = "#ffffff"),
+    plot.subtitle = element_text(color = "#ffffff"),
+    plot.caption = element_text(color = "#ffffff", face = "italic", size = 6),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(color = "#273746"),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    legend.position = "none",
+    )
+candlestick
+```
+
+Moving average for 10, 20 and 50 days
+```{r}
+# Calculate moving averages using rollapply
+charting_data$MA_10 <- rollapply(charting_data$Close, width = 10, FUN = mean, align = "right", fill = NA)
+charting_data$MA_20 <- rollapply(charting_data$Close, width = 20, FUN = mean, align = "right", fill = NA)
+charting_data$MA_50 <- rollapply(charting_data$Close, width = 50, FUN = mean, align = "right", fill = NA)
+
+# Plot the data with moving averages
+ggplot(charting_data, aes(x = Date, y = Close)) +
+  geom_line(color = "blue", size = 1) +  # Closing price line
+  geom_line(aes(y = MA_10), color = "green", size = 1, linetype = "dashed") +  # 10-day moving average
+  geom_line(aes(y = MA_20), color = "orange", size = 1, linetype = "dashed") +  # 20-day moving average
+  geom_line(aes(y = MA_50), color = "red", size = 1, linetype = "dashed") +  # 50-day moving average
+  labs(
+    title = "Stock Price with Moving Averages",
+    x = "Date",
+    y = "Stock Price"
+  ) +
+  theme_minimal()
+```
+
+Comparing the stock price trend for Apple, Microsoft and Google.
+
+```{r}
+# Filter data for the specified tickers
+selected_tickers <- c("AAPL", "MSFT", "GOOGL")
+filtered_data <- returns_sp500[returns_sp500$Ticker %in% selected_tickers, ]
+
+# Plot the Adj_Close prices for the selected tickers
+ggplot(filtered_data, aes(x = Date, y = Close, color = Ticker)) +
+  geom_line() +
+  labs(
+    title = "Comparison of Close Prices",
+    x = "Date",
+    y = "Close Price",
+    color = "Ticker"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+# Plotting relationship between Open and Close
+ggplot(returns_sp500, aes(x = Open, y = Close)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Open vs Close", x = "Open Price", y = "Close Price")+
+  theme_minimal()+theme(panel.grid = element_blank())
+
+# Plotting relationship between High and Close
+ggplot(returns_sp500, aes(x = High, y = Close)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "High vs Close", x = "High Price", y = "Close Price")+
+  theme_minimal()+theme(panel.grid = element_blank())
+
+# Plotting relationship between Volume and Close
+ggplot(returns_sp500, aes(x = Volume, y = Close)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Volume vs Close", x = "Volume", y = "Close Price")+
+  theme_minimal()+theme(panel.grid = element_blank())
+
+# Plotting relationship between Low and Close
+ggplot(returns_sp500, aes(x = Low, y = Close)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Low vs Close", x = "Low", y = "Close Price")+
+  theme_minimal()+theme(panel.grid = element_blank())
+```
+

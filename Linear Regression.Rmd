@@ -1,0 +1,70 @@
+---
+title: "Linear Regression on Stock Prices"
+author: "Anushka Kapoor"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+```{r}
+#load("~/Desktop/MSBA Class'24/Machine learning/Machine Learning/sp500.RData")
+load("~/Desktop/MSBA Class'24/Machinelearning/MachineLearning/returns.RData")
+
+ticker <- "AAPL"
+total_data <- returns %>% filter(Ticker == ticker, Date >= "2022-06-24")
+set.seed(7)
+total_obs <- dim(total_data)[1]
+# Data partition / Sample splitting
+train_data_indices <- sample(1:total_obs, 0.8*total_obs)
+train_data <- total_data[train_data_indices,]
+test_data <- total_data[-train_data_indices,]
+# Record the size of training data and test data
+train_obs <- dim(train_data)[1]
+test_obs <- dim(test_data)[1]
+```
+
+```{r}
+lm1 <- lm(Close ~ Open + High + Low + Movement, data = train_data)
+
+# Summary of the linear regression model
+summary(lm1)
+```
+
+```{r}
+library(forecast)
+predictions <- predict(lm1, newdata = test_data)
+accuracy(predictions, test_data$Close)
+```
+```{r}
+result_df <- data.frame(
+  Predicted = predictions,
+  Actual = test_data$Close
+)
+max_date <- max(test_data$Date)
+```
+
+```{r}
+plot_data <- data.frame(
+  Date = test_data$Date,  # Assuming you have a Date column in your test_data
+  Predicted = predictions,
+  Actual = test_data$Close
+)
+
+# Plot the line chart
+ggplot(plot_data, aes(x = Date)) +
+  geom_line(aes(y = Predicted, color = "Predicted"), size = 1.5) +
+  geom_line(aes(y = Actual, color = "Actual"), size = 1.5) +
+  labs(title = "Predicted vs Actual Close Price",
+       y = "Close Price",
+       x = "Date") +
+  scale_color_manual(values = c("Predicted" = "blue", "Actual" = "red")) +
+  theme_minimal()
+```
+
